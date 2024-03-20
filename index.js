@@ -24,6 +24,7 @@ if (!fs.existsSync(dbPath)) {
     fs.writeFileSync(dbPath, '{}', 'utf8');
 }
 
+ANNOUNCEMENTS_CHANNEL_ID = '1217042241298632775';
 LOGS_CHANNEL_ID = '1219682616412868618';
 VALIDATOR_ROLE_NAME = 'Yakuza 1️⃣';
 REACTION_NAME = 'APSRJWHATT';
@@ -56,6 +57,15 @@ CHANNELS_LIST = [
     '1213076615647600700', // private-education
     '1213055330456703046', // les-arcenciels
     '1215269193075920916' // bravo
+]
+ANNOUNCEMENTS_MESSAGES = [
+    '${USER}, t\'as vu ? Tu es devenu un ${ROLE} !',
+    'Regarde derrière ton oreille ${USER}, là tu vois ? Oui c’est ton nouveau rôle, tu es ${ROLE} !',
+    'Mesdames et Messieurs et Moulins à poivre, sur ce tabouret ${USER} va enfin devenir ${ROLE}',
+    'Sur la longue route pour devenir <@&1213039056913436673>, ${USER} a réussi un pas de fourmi volante : il se transforme en ${ROLE}',
+    '${USER}, jadis tu fus <@&1212937772227362857>, mais tu as pris de la bouteille, et tu es un grand maintenant, tu es ${ROLE}',
+    'Vive le vent, vive le vent, vive le vent de ${USER}, boule de neige et jour de l’an, t’as reçu le rôle de ${ROLE}',
+    'Woof woof ? Meow ! ${USER} grrr ${USER} ${ROLE} couac'
 ]
 
 client.once(Events.ClientReady, c => {
@@ -127,7 +137,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
                 if (highestRoleIndex === -1) {
                     console.log('Le rang actuel n\'a pas été trouvé.');
-                    logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : current role (${highestRole.name}) not found).`);
+                    logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : current role (<@&${highestRole.name}>) not found).`);
                     return;
                 }
 
@@ -147,7 +157,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
                 await targetMember.roles.add(newRole);
                 console.log(`${targetMember.user.tag} a été promu au nouveau rang.`);
-                logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (promotion de ${targetMember.user.tag} au rang ${newRole.name}).`);
+                logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (promotion de ${targetMember.user.tag} au rang <@&${newRole.name}>).`);
+
+                let announcementMessage = ANNOUNCEMENTS_MESSAGES[Math.floor(Math.random() * ANNOUNCEMENTS_MESSAGES.length)];
+                announcementMessage = announcementMessage.replace('${USER}', '<@' + targetMember.id + '>');
+                announcementMessage = announcementMessage.replace('${ROLE}', '<@&' + newRole.id + '>');
+                client.channels.cache.get(ANNOUNCEMENTS_CHANNEL_ID).send(announcementMessage);
 
                 processedMessages[message.id] = true;
                 writeDB(processedMessages);
