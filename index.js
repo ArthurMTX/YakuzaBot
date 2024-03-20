@@ -40,8 +40,22 @@ ROLES_LIST = [
     'Couilliste 🪇',
     'Pizza-yolo 🍕',
     'Educator 🎓',
-    'Arc-en-cieliste 🌈',
-    'Yakuza 1️⃣'
+    'Arc-en-cieliste 🌈'
+]
+CHANNELS_LIST = [
+    '1073286655584247841', // jacuzzi
+    '1212946526830329956', // a-plusieurs-sous-raphael-julliard
+    '1213055457019822111', // cousu-de-fil-rouge
+    '1212935551167111218', // y’a-un-yakuza-dans-mon-jacuzzi
+    '1213526921418383370', // marylin-monroe
+    '1213053540268904448', // hey-perdedor
+    '1213053455472787546', // cui-cui
+    '1213053349373546497', // kant-ou-brocante
+    '1213055410010062858', // samba-les-couilles
+    '1213053495285121056', // pizza-pasta
+    '1213076615647600700', // private-education
+    '1213055330456703046', // les-arcenciels
+    '1215269193075920916' // bravo
 ]
 
 client.once(Events.ClientReady, c => {
@@ -92,6 +106,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
     if (emoji.name === REACTION_NAME) {
         try {
+            const channelIndex = CHANNELS_LIST.indexOf(message.channel.id);
             const member = await message.guild.members.fetch(user.id);
             const validatorRole = message.guild.roles.cache.find(role => role.name === VALIDATOR_ROLE_NAME);
 
@@ -105,14 +120,20 @@ client.on('messageReactionAdd', async (reaction, user) => {
                 console.log('L\'utilisateur a le rôle de validateur.');
                 logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (validator).`);
 
-                const targetMember = message.guild.members.cache.find(member => member.id === message.author.id);
+                const targetMember = await message.guild.members.fetch(message.author.id);
 
                 let highestRole = targetMember.roles.highest;
                 let highestRoleIndex = ROLES_LIST.indexOf(highestRole.name);
 
                 if (highestRoleIndex === -1) {
                     console.log('Le rang actuel n\'a pas été trouvé.');
-                    logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : current role not found).`);
+                    logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : current role (${highestRole.name}) not found).`);
+                    return;
+                }
+
+                if (highestRoleIndex !== channelIndex) {
+                    console.log('Le rang actuel ne correspond pas au salon.');
+                    logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : channel mismatch).`);
                     return;
                 }
 
@@ -128,6 +149,8 @@ client.on('messageReactionAdd', async (reaction, user) => {
                 console.log(`${targetMember.user.tag} a été promu au nouveau rang.`);
                 logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (promotion de ${targetMember.user.tag} au rang ${newRole.name}).`);
 
+                processedMessages[message.id] = true;
+                writeDB(processedMessages);
             } else {
                 console.log('L\'utilisateur n\'a pas le rôle de validateur.');
                 logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : not a validator).`);
@@ -140,9 +163,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
         console.log('La réaction n\'est pas celle attendue : ' + emoji.name);
         logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : unknown reaction).`);
     }
-
-    processedMessages[message.id] = true;
-    writeDB(processedMessages);
 });
 
 
