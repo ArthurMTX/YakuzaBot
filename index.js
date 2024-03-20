@@ -12,6 +12,17 @@ const client = new Client({
     ],
     partials: [Partials.Channel, Partials.Message, Partials.Reaction],
 });
+const dbPath = path.join(__dirname, 'processedMessages.json');
+
+if (!process.env.DISCORD_TOKEN) {
+    console.error('Le token n\'a pas été trouvé.');
+    process.exit(1);
+}
+
+if (!fs.existsSync(dbPath)) {
+    console.log('Le fichier DB n\'existe pas. Création du fichier...');
+    fs.writeFileSync(dbPath, '{}', 'utf8');
+}
 
 LOGS_CHANNEL_ID = '1219682616412868618';
 VALIDATOR_ROLE_NAME = 'Yakuza 1️⃣';
@@ -37,11 +48,37 @@ client.once(Events.ClientReady, c => {
     console.log(`Le bot est prêt ! Connecté en tant que ${client.user.tag}.`);
 });
 
+function readDB() {
+    try {
+        const data = fs.readFileSync(dbPath, 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.error('Erreur lors de la lecture du fichier DB :', error);
+        return {};
+    }
+}
+
+function writeDB(data) {
+    try {
+        fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (error) {
+        console.error('Erreur lors de l\'écriture dans le fichier DB :', error);
+    }
+}
+
 client.on('messageReactionAdd', async (reaction, user) => {
     if (user.bot) return;
 
     let { message, emoji } = reaction;
     const logsChannel = client.channels.cache.get(LOGS_CHANNEL_ID);
+
+    const processedMessages = readDB();
+
+    if (processedMessages[message.id]) {
+        console.log('Ce message a déjà conduit à une promotion. Ignoré.');
+        logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : already processed).`);
+        return;
+    }
 
     if (message.partial) {
         try {
@@ -103,8 +140,11 @@ client.on('messageReactionAdd', async (reaction, user) => {
         console.log('La réaction n\'est pas celle attendue : ' + emoji.name);
         logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : unknown reaction).`);
     }
+
+    processedMessages[message.id] = true;
+    writeDB(processedMessages);
 });
 
 
-client.login(process.env.TOKEN);
+client.login(process.env.DISCORD_TOKEN);
 
