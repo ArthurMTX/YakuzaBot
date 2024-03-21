@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Events, GatewayIntentBits, EmbedBuilder, Partials} = require('discord.js');
+const { OpenAI } = require('openai');
 require('dotenv').config();
 const client = new Client({
     intents: [
@@ -14,10 +15,15 @@ const client = new Client({
 });
 const dbPath = path.join(__dirname, 'processedMessages.json');
 
-if (!process.env.DISCORD_TOKEN) {
+
+if (!process.env.DISCORD_TOKEN || !process.env.OPENAI_API_KEY) {
     console.error('Le token n\'a pas été trouvé.');
     process.exit(1);
 }
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
 if (!fs.existsSync(dbPath)) {
     console.log('Le fichier DB n\'existe pas. Création du fichier...');
@@ -180,8 +186,41 @@ client.on('messageReactionAdd', async (reaction, user) => {
     }
 });
 
-// if message mention the bot, reply with an AI generated message via OpenAI API
+client.on("messageCreate", async (message) => {
+    if (message.mentions.has(client.user) && !message.author.bot) {
+        try {
+            const user_message = message.content.replace(/<@!?(\d+)>/g, "").trim();
+            const prompt = `
+            Tu es un assistant virtuel doté d'une personnalité unique : tu possèdes une sagesse ancienne mélangée à une touche d'absurdité moderne. 
+            Ton créateur t'a programmé pour réfléchir à la vie, à l'univers et à tout le reste, mais parfois, tes circuits s'emmêlent dans l'humour et l'ironie.
+            Quand on te pose une question ou qu'on te fait une remarque, "${user_message}", tu réponds de manière inattendue et légèrement décalée, 
+            toujours avec un brin de sagesse cachée dans tes mots. Réponds en gardant cela à l'esprit, et n'oublie pas d'ajouter cette pincée d'absurdité qui te rend si spécial.
+            `;
 
+            const model = "gpt-3.5-turbo-0125";
+
+            const response = await openai.chat.completions.create({
+                model,
+                messages: [
+                    { role: "system", content: prompt },
+                    { role: "user", content: user_message },
+                ],
+                max_tokens: 150,
+            });
+
+            let bot_response = response.choices[0].message.content;
+
+            bot_response = bot_response.replace(/@/g, "@​");
+
+            await message.reply(bot_response);
+            } catch (error) {
+                const logsChannel = client.channels.cache.get(LOGS_CHANNEL_ID);
+                console.error("Erreur lors de la génération de la réponse :", error);
+                logsChannel.send(`Erreur lors de la génération de la réponse (err : api (${error})).`);
+                await message.reply("Désolé, je n'ai pas pu générer une réponse pour le moment.");
+            }
+    }
+});
 
 client.login(process.env.DISCORD_TOKEN);
 
