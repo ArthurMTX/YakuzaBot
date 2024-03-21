@@ -137,7 +137,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
                 if (highestRoleIndex === -1) {
                     console.log('Le rang actuel n\'a pas été trouvé.');
-                    logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : current role (<@&${highestRole.name}>) not found).`);
+                    logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : current role (<@&${highestRole.id}>) not found).`);
                     return;
                 }
 
@@ -157,7 +157,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
                 await targetMember.roles.add(newRole);
                 console.log(`${targetMember.user.tag} a été promu au nouveau rang.`);
-                logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (promotion de ${targetMember.user.tag} au rang <@&${newRole.name}>).`);
+                logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (promotion de ${targetMember.user.tag} au rang <@&${newRole.id}>).`);
 
                 let announcementMessage = ANNOUNCEMENTS_MESSAGES[Math.floor(Math.random() * ANNOUNCEMENTS_MESSAGES.length)];
                 announcementMessage = announcementMessage.replace('${USER}', '<@' + targetMember.id + '>');
@@ -179,6 +179,8 @@ client.on('messageReactionAdd', async (reaction, user) => {
         logsChannel.send(`<@${user.id}> a réagi avec ${emoji.name} à [ce message](<${message.url}>) (err : unknown reaction).`);
     }
 });
+
+// if message mention the bot, reply with an AI generated message via OpenAI API
 
 
 client.login(process.env.DISCORD_TOKEN);
