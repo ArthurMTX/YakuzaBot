@@ -186,21 +186,51 @@ client.on('messageReactionAdd', async (reaction, user) => {
     }
 });
 
+async function replaceMentionsWithUsernames(message) {
+    const regex = /<@!?(\d+)>/g;
+    let content = message.content;
+    let match;
+
+    while ((match = regex.exec(message.content)) !== null) {
+        const userId = match[1];
+        try {
+            const member = await message.guild.members.fetch(userId);
+            const username = member.nickname ? member.nickname : member.user.username;
+            content = content.replace(match[0], `@${username}`);
+        } catch (error) {
+            console.error("Erreur lors de la récupération du membre :", error);
+            content = content.replace(match[0], `@${userId}`);
+        }
+    }
+
+    return content;
+}
+
 client.on("messageCreate", async (message) => {
     if (message.mentions.has(client.user) && !message.author.bot) {
         try {
-            const user_message = message.content.replace(/<@!?(\d+)>/g, "").trim();
-            const prompt = `
-            Tu es un assistant virtuel doté d'une personnalité unique : tu possèdes une sagesse ancienne mélangée à une touche d'absurdité moderne. 
-            Ton créateur t'a programmé pour réfléchir à la vie, à l'univers et à tout le reste, mais parfois, tes circuits s'emmêlent dans l'humour et l'ironie.
-            Quand on te pose une question ou qu'on te fait une remarque, "${user_message}", tu réponds de manière inattendue et légèrement décalée, 
-            toujours avec un brin de sagesse cachée dans tes mots. Réponds en gardant cela à l'esprit, et n'oublie pas d'ajouter cette pincée d'absurdité qui te rend si spécial.
-            `;
+            let conversation = [];
+            let currentMessage = message;
+            while (currentMessage && currentMessage.reference) {
+                const referencedMessage = await currentMessage.channel.messages.fetch(currentMessage.reference.messageId);
+                conversation.unshift(`Message de ${referencedMessage.author.username} : ${referencedMessage.content}`);
+                currentMessage = referencedMessage;
+            }
+            
+            let user_message = await replaceMentionsWithUsernames(message);
+            conversation.push(`Message de ${message.author.username} : ${user_message}`);
+            const full_conversation = conversation.join("\n\n");
 
+            const prompt = `
+            Tu es un assistant virtuel sur Discord nommé YakuzaBot, doté d'une personnalité unique : tu possèdes une sagesse ancienne mélangée à une touche d'absurdité moderne. 
+            Ton créateur t'a programmé pour réfléchir à la vie, à l'univers et à tout le reste, mais parfois, tes circuits s'emmêlent dans l'humour et l'ironie.
+            Voici la conversation actuelle :\n\n${full_conversation}\n\nEn tenant compte de cette conversation, comment répondrais-tu de manière inattendue et légèrement décalée, 
+            toujours avec un brin de sagesse cachée dans tes mots ?
+            `;
             const model = "gpt-3.5-turbo-0125";
 
             const response = await openai.chat.completions.create({
-                model,
+                model: model,
                 messages: [
                     { role: "system", content: prompt },
                     { role: "user", content: user_message },
@@ -209,16 +239,16 @@ client.on("messageCreate", async (message) => {
             });
 
             let bot_response = response.choices[0].message.content;
-
             bot_response = bot_response.replace(/@/g, "@​");
 
             await message.reply(bot_response);
-            } catch (error) {
-                const logsChannel = client.channels.cache.get(LOGS_CHANNEL_ID);
-                console.error("Erreur lors de la génération de la réponse :", error);
-                logsChannel.send(`Erreur lors de la génération de la réponse (err : api (${error})).`);
-                await message.reply("Désolé, je n'ai pas pu générer une réponse pour le moment.");
-            }
+
+        } catch (error) {
+            const logsChannel = client.channels.cache.get(LOGS_CHANNEL_ID);
+            console.error("Erreur lors de la génération de la réponse :", error);
+            logsChannel.send(`Erreur lors de la génération de la réponse (err : api (${error})).`);
+            await message.reply("Désolé, je n'ai pas pu générer une réponse pour le moment.");
+        }
     }
 });
 
