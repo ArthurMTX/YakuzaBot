@@ -32,6 +32,7 @@ if (!fs.existsSync(dbPath)) {
 
 ANNOUNCEMENTS_CHANNEL_ID = '1217042241298632775';
 LOGS_CHANNEL_ID = '1219682616412868618';
+WELCOME_CHANNEL_ID = '1213539909575516290';
 VALIDATOR_ROLE_NAME = 'Yakuza 1️⃣';
 REACTION_NAME = 'APSRJWHATT';
 ROLES_LIST = [
@@ -216,17 +217,17 @@ client.on("messageCreate", async (message) => {
                 conversation.unshift(`Message de ${referencedMessage.author.username} : ${referencedMessage.content}`);
                 currentMessage = referencedMessage;
             }
-            
+
             let user_message = await replaceMentionsWithUsernames(message);
             conversation.push(`Message de ${message.author.username} : ${user_message}`);
             const full_conversation = conversation.join("\n\n");
 
             const prompt = `
-            Tu es un assistant virtuel sur Discord nommé YakuzaBot, doté d'une personnalité unique : tu possèdes une sagesse ancienne mélangée à une touche d'absurdité moderne. 
-            Ton créateur t'a programmé pour réfléchir à la vie, à l'univers et à tout le reste, mais parfois, tes circuits s'emmêlent dans l'humour et l'ironie.
-            Voici la conversation actuelle :\n\n${full_conversation}\n\nEn tenant compte de cette conversation, comment répondrais-tu de manière inattendue et légèrement décalée, 
-            toujours avec un brin de sagesse cachée dans tes mots ?
-            `;
+                    Tu es un assistant virtuel sur Discord nommé YakuzaBot, doté d'une personnalité unique : tu possèdes une sagesse ancienne mélangée à une touche d'absurdité moderne. 
+                    Ton créateur t'a programmé pour réfléchir à la vie, à l'univers et à tout le reste, mais parfois, tes circuits s'emmêlent dans l'humour et l'ironie.
+                    Voici la conversation actuelle :\n\n${full_conversation}\n\nEn tenant compte de cette conversation, comment répondrais-tu de manière inattendue et légèrement décalée, 
+                    toujours avec un brin de sagesse cachée dans tes mots ?
+                    `;
             const model = "gpt-3.5-turbo-0125";
 
             const response = await openai.chat.completions.create({
@@ -249,6 +250,55 @@ client.on("messageCreate", async (message) => {
             logsChannel.send(`Erreur lors de la génération de la réponse (err : api (${error})).`);
             await message.reply("Désolé, je n'ai pas pu générer une réponse pour le moment.");
         }
+    }
+});
+
+client.on('guildMemberAdd', async (member) => {
+    const logsChannel = client.channels.cache.get(LOGS_CHANNEL_ID);
+    try {
+        console.log(`${member.user.tag} a rejoint le serveur.`);
+        logsChannel.send(`${member.user.tag} a rejoint le serveur. Nous sommes maintenant ${member.guild.memberCount} membres.`);
+
+        const prompt = `
+            Tu es un assistant virtuel sur Discord nommé YakuzaBot, doté d'une personnalité unique : tu possèdes une sagesse ancienne mélangée à une touche d'absurdité moderne. 
+            Ton créateur t'a programmé pour accueillir les nouveaux membres du serveur, en leur souhaitant la bienvenue et en leur offrant un conseil de vie inattendu et un peu décalé.
+            Tu dois aussi diriger l'utilisateur vers sa première mission en expliquant qu'elle se trouve dans le salon jacuzzi où il faut ajouter un émoji 🫧 dans la conversation.
+            
+            Dans ta réponse, tu dois inclure le nom de l'utilisateur en mettant XXXX à la place, et le nom du salon en mettant YYYY, 
+            valeur qui seront remplacées par les informations réelles APRES la génération de la réponse (C'EST IMPORTANT DE LAISSER CES PLACEHOLDERS).
+            
+            Maintenant accueille XXXX et guide-le vers YYYY.
+            `;
+        const model = "gpt-3.5-turbo-0125";
+
+        const response = await openai.chat.completions.create({
+            model: model,
+            messages: [
+                { role: "system", content: prompt },
+            ],
+        });
+
+        let bot_response = response.choices[0].message.content;
+        bot_response = bot_response.replace('XXXX', `<@${member.id}>`);
+        bot_response = bot_response.replace('YYYY', `<#${CHANNELS_LIST[0]}>`);
+
+        await client.channels.cache.get(WELCOME_CHANNEL_ID).send(bot_response);
+    }
+    catch (error) {
+        console.error("Erreur lors de la gestion de l'événement d'arrivée :", error);
+        logsChannel.send(`Erreur lors de la gestion de l'événement d'arrivée (err : ${error}).`);
+    }
+});
+
+client.on('guildMemberRemove', async (member) => {
+    const logsChannel = client.channels.cache.get(LOGS_CHANNEL_ID);
+    try {
+        console.log(`${member.user.tag} a quitté le serveur.`);
+        logsChannel.send(`<@${member.user.id}> (${member.user.username}) a quitté le serveur. Nous sommes maintenant ${member.guild.memberCount} membres.`);
+    }
+    catch (error) {
+        console.error("Erreur lors de la gestion de l'événement de départ :", error);
+        logsChannel.send(`Erreur lors de la gestion de l'événement de départ (err : ${error}).`);
     }
 });
 
